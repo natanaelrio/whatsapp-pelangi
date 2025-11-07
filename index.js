@@ -2,11 +2,15 @@ const express = require("express");
 const qrcode = require("qrcode-terminal");
 const path = require("path");
 const fs = require("fs");
-require("dotenv").config(); // <-- ini penting
+const cors = require("cors");
+require("dotenv").config(); // <-- penting: load .env sebelum pakai process.env
 const { Client, LocalAuth } = require("whatsapp-web.js");
 
 const app = express();
+
+// === MIDDLEWARE DASAR ===
 app.use(express.json());
+app.use(cors()); // <-- tambahkan ini untuk izinkan akses dari domain lain
 
 // === KONFIGURASI TOKEN AUTENTIKASI ===
 const AUTH_TOKEN = process.env.AUTH_TOKEN;
@@ -15,20 +19,20 @@ const PORT = process.env.PORT || 3008;
 // === MIDDLEWARE AUTENTIKASI ===
 app.use((req, res, next) => {
     const authHeader = req.headers.authorization;
+
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({ error: "Token wajib disertakan pada header Authorization." });
     }
 
     const token = authHeader.split(" ")[1];
-    console.log(token);
-
     if (token !== AUTH_TOKEN) {
         return res.status(403).json({ error: "Token tidak valid atau tidak diizinkan." });
     }
+
     next();
 });
 
-// === CONFIGURASI SESSION ===
+// === KONFIGURASI SESSION ===
 const sessionPath = path.join(__dirname, ".wwebjs_auth");
 if (!fs.existsSync(sessionPath)) {
     fs.mkdirSync(sessionPath, { recursive: true });
@@ -83,6 +87,7 @@ app.get("/groups", async (req, res) => {
         const groups = chats
             .filter(chat => chat.isGroup)
             .map(chat => ({ id: chat.id._serialized, name: chat.name }));
+
         res.json(groups);
     } catch (error) {
         console.error("❌ Gagal ambil daftar grup:", error);
