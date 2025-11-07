@@ -46,7 +46,15 @@ const client = new Client({
     }),
     puppeteer: {
         headless: true,
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        executablePath: "/usr/bin/chromium", // pastikan chromium-nya dari sistem
+        args: [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--disable-extensions",
+            "--disable-infobars",
+        ],
     },
 });
 
