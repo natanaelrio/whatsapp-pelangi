@@ -39,6 +39,17 @@ if (!fs.existsSync(sessionPath)) {
 }
 
 // === INISIALISASI CLIENT WHATSAPP ===
+// const client = new Client({
+//     authStrategy: new LocalAuth({
+//         clientId: "session-wa",
+//         dataPath: sessionPath,
+//     }),
+//     puppeteer: {
+//         headless: true,
+//         args: ["--no-sandbox", "--disable-setuid-sandbox"],
+//     },
+// });
+
 const client = new Client({
     authStrategy: new LocalAuth({
         clientId: "session-wa",
@@ -88,6 +99,23 @@ app.post("/send-group", async (req, res) => {
     }
 });
 
+app.post("/send-person", async (req, res) => {
+    const { contactId, message } = req.body;
+
+    if (!contactId || !message) {
+        return res.status(400).json({ error: "Parameter 'contactId' dan 'message' wajib diisi." });
+    }
+
+    try {
+        await client.sendMessage(contactId, message);
+        console.log(`Pesan berhasil dikirim ke ${contactId}`);
+        res.json({ success: true, message: `Pesan berhasil dikirim ke ${contactId}` });
+    } catch (error) {
+        console.error("❌ Gagal kirim pesan ke orang:", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // === API: AMBIL SEMUA GRUP ===
 app.get("/groups", async (req, res) => {
     try {
@@ -123,6 +151,46 @@ app.get("/find-group", async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+
+
+// === API: AMBIL CONTACT DARI GROUP ===
+app.get("/group-members/:groupId", async (req, res) => {
+    const { groupId } = req.params;
+
+    if (!groupId) {
+        return res.status(400).json({ error: "Parameter 'groupId' wajib diisi." });
+    }
+
+    try {
+        // Ambil chat berdasarkan ID grup
+        const chat = await client.getChatById(groupId);
+
+        // Pastikan ini grup
+        if (!chat.isGroup) {
+            return res.status(400).json({ error: "ID yang diberikan bukan grup." });
+        }
+
+        // Ambil semua peserta grup
+        const members = chat.participants.map(p => ({
+            id: p?.id?._serialized,        // ID WA untuk mention
+            name: p?.contact?.name || "Unknown" // Nama anggota
+        }));
+
+        // Kirim response JSON
+        res.json({
+            groupId: chat?.id?._serialized,
+            groupName: chat?.name,
+            members
+        });
+    } catch (error) {
+        console.error("❌ Gagal ambil member grup:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+
 
 // === JALANKAN SERVER ===
 app.listen(PORT, () => console.log(`🌐 Server berjalan di http://localhost:${PORT}`));

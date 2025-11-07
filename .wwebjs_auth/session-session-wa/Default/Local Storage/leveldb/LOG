@@ -1,6 +1,5 @@
-2025/11/07-12:23:52.309 41f0 Reusing MANIFEST C:\Users\VICTUS\Desktop\PL\whatsapp\.wwebjs_auth\session-session-wa\Default\Local Storage\leveldb/MANIFEST-000001
-2025/11/07-12:23:52.309 41f0 Recovering log #3
-2025/11/07-12:23:52.309 41f0 Reusing old log C:\Users\VICTUS\Desktop\PL\whatsapp\.wwebjs_auth\session-session-wa\Default\Local Storage\leveldb/000003.log 
-2025/11/07-12:24:53.089 6994 Level-0 table #5: started
-2025/11/07-12:24:53.096 6994 Level-0 table #5: 16973 bytes OK
-2025/11/07-12:24:53.102 6994 Delete type=0 #3
+2025/11/07-15:01:22.388 78a4 Reusing MANIFEST C:\Users\VICTUS\Desktop\PL\whatsapp\.wwebjs_auth\session-session-wa\Default\Local Storage\leveldb/MANIFEST-000001
+2025/11/07-15:01:22.388 78a4 Recovering log #3
+2025/11/07-15:01:22.389 78a4 Level-0 table #3: started
+2025/11/07-15:01:22.394 78a4 Level-0 table #3: 17771 bytes OK
+2025/11/07-15:01:22.403 78a4 Delete type=0 #3
