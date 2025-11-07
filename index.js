@@ -46,7 +46,7 @@ const client = new Client({
     }),
     puppeteer: {
         headless: true,
-        executablePath: "/usr/bin/chromium", // pastikan chromium-nya dari sistem
+        executablePath: "/usr/bin/chromium-browser", // path yang sesuai
         args: [
             "--no-sandbox",
             "--disable-setuid-sandbox",
