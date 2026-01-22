@@ -130,7 +130,20 @@ async function startWA() {
         printQRInTerminal: true,
         auth: state,
         version,
-        browser: ["WA API", "Chrome", "1.0"]
+        browser: ["WA API", "Chrome", "1.0"],
+
+        // ⚡ optimasi performa
+        syncFullHistory: false,
+        markOnlineOnConnect: false,
+        generateHighQualityLinkPreview: false,
+
+        // 🧠 stabilitas
+        connectTimeoutMs: 60_000,
+        defaultQueryTimeoutMs: 0,
+
+        // 🚀 performa websocket
+        keepAliveIntervalMs: 15_000,
+        emitOwnEvents: false
     })
 
     sock.ev.on("creds.update", saveCreds)
