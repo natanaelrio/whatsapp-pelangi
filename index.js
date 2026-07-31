@@ -184,6 +184,7 @@ app.post("/send-group", async (req, res) => {
         .then(() => sock.sendMessage(groupId, { text: message }))
         .then(() => log(`✅ Grup terkirim ${groupId}`))
         .catch(err => log("❌ Gagal kirim grup:", err))
+
 })
 
 // GET GROUP LIST
@@ -196,6 +197,63 @@ app.get("/groups", async (req, res) => {
     }))
 
     res.json(list)
+})
+
+// ================= AUTO REMINDER GROUP =================
+const TARGET_GROUP = "120363021369281320@g.us"
+
+sock?.ev?.on?.("messages.upsert", () => { }) // optional
+
+function getMessageText(msg) {
+    if (msg.message?.conversation)
+        return msg.message.conversation
+
+    if (msg.message?.extendedTextMessage)
+        return msg.message.extendedTextMessage.text
+
+    return ""
+}
+
+sock.ev.on("messages.upsert", async ({ messages, type }) => {
+    if (type !== "notify") return
+
+    const msg = messages[0]
+    if (!msg?.message) return
+
+    // hanya grup yang ditentukan
+    if (msg.key.remoteJid !== TARGET_GROUP) return
+
+    // abaikan pesan dari bot sendiri
+    if (msg.key.fromMe) return
+
+    const text = getMessageText(msg).trim()
+
+    // menerima:
+    // OK
+    // ok
+    // Ok
+    // OKE
+    // oke
+    // Oke
+    // 0K
+    // 0ke
+    if (!/^(ok|oke|0k|0ke)$/i.test(text)) return
+
+    try {
+        await sock.sendMessage(
+            TARGET_GROUP,
+            {
+                text: "Jangan lupa bukti FU di-upload di Paperwork yang sudah disediakan."
+            },
+            {
+                quoted: msg
+            }
+        )
+
+        log("✅ Auto reminder terkirim")
+    } catch (err) {
+        log("❌ Auto reminder gagal", err)
+    }
 })
 
 // ================= SERVER =================
