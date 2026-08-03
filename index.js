@@ -116,10 +116,10 @@ async function startWA() {
         emitOwnEvents: false
     })
 
-    sock.ev.on("creds.update", saveCreds)
-
     // START AUTO REMINDER
     setupAutoReminder()
+
+    sock.ev.on("creds.update", saveCreds)
 
     sock.ev.on("connection.update", async (update) => {
         const { connection, lastDisconnect, qr } = update
@@ -230,7 +230,7 @@ function setupAutoReminder() {
         if (!msg?.message) return
 
 
-        // anti duplicate message
+        // anti double proses
         const messageId = msg.key.id
 
         if (processedMessages.has(messageId)) return
@@ -238,17 +238,11 @@ function setupAutoReminder() {
         processedMessages.add(messageId)
 
 
-        // bersihkan memory
-        if (processedMessages.size > 1000) {
-            processedMessages.clear()
-        }
-
-
         // hanya group tertentu
         if (msg.key.remoteJid !== TARGET_GROUP) return
 
 
-        // abaikan pesan bot sendiri
+        // abaikan pesan dari bot sendiri
         if (msg.key.fromMe) return
 
 
@@ -257,12 +251,7 @@ function setupAutoReminder() {
             .toLowerCase()
 
 
-        // trigger:
-        // ok
-        // oke
-        // 0k
-        // 0ke
-
+        // trigger OK / OKE / 0K / 0KE
         if (!/^(ok|oke|0k|0ke)$/i.test(text)) {
             return
         }
@@ -273,8 +262,7 @@ function setupAutoReminder() {
             await sock.sendMessage(
                 TARGET_GROUP,
                 {
-                    text:
-                        "Jangan lupa bukti FU di-upload di Paperwork yang sudah disediakan."
+                    text: "Jangan lupa bukti FU di-upload di Paperwork yang sudah disediakan.  "
                 },
                 {
                     quoted: msg
