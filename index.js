@@ -140,26 +140,15 @@ async function startWA() {
     // TEST MESSAGE + AUTO REMINDER
     sock.ev.on("messages.upsert", async ({ messages, type }) => {
 
-
         log("🔥 EVENT MESSAGE MASUK", type)
 
         if (type !== "notify") return
+
 
         const msg = messages[0]
 
         if (!msg?.message) return
 
-
-        const messageId = msg.key.id
-
-        if (processedMessages.has(messageId)) return
-
-        processedMessages.add(messageId)
-
-
-        if (processedMessages.size > 1000) {
-            processedMessages.clear()
-        }
 
         log({
             jid: msg.key.remoteJid,
