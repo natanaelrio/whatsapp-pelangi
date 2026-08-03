@@ -118,6 +118,9 @@ async function startWA() {
 
     sock.ev.on("creds.update", saveCreds)
 
+    // START AUTO REMINDER
+    setupAutoReminder()
+
     sock.ev.on("connection.update", async (update) => {
         const { connection, lastDisconnect, qr } = update
 
@@ -199,62 +202,100 @@ app.get("/groups", async (req, res) => {
     res.json(list)
 })
 
-// // ================= AUTO REMINDER GROUP =================
-// const TARGET_GROUP = "120363021369281320@g.us"
+// ================= AUTO REMINDER GROUP =================
 
-// sock?.ev?.on?.("messages.upsert", () => { }) // optional
+const TARGET_GROUP = "120363406595440008@g.us"
 
-// function getMessageText(msg) {
-//     if (msg.message?.conversation)
-//         return msg.message.conversation
+const processedMessages = new Set()
 
-//     if (msg.message?.extendedTextMessage)
-//         return msg.message.extendedTextMessage.text
+function getMessageText(msg) {
+    return (
+        msg.message?.conversation ||
+        msg.message?.extendedTextMessage?.text ||
+        msg.message?.imageMessage?.caption ||
+        msg.message?.videoMessage?.caption ||
+        ""
+    )
+}
 
-//     return ""
-// }
 
-// sock.ev.on("messages.upsert", async ({ messages, type }) => {
-//     if (type !== "notify") return
+function setupAutoReminder() {
 
-//     const msg = messages[0]
-//     if (!msg?.message) return
+    sock.ev.on("messages.upsert", async ({ messages, type }) => {
 
-//     // hanya grup yang ditentukan
-//     if (msg.key.remoteJid !== TARGET_GROUP) return
+        if (type !== "notify") return
 
-//     // abaikan pesan dari bot sendiri
-//     if (msg.key.fromMe) return
+        const msg = messages[0]
 
-//     const text = getMessageText(msg).trim()
+        if (!msg?.message) return
 
-//     // menerima:
-//     // OK
-//     // ok
-//     // Ok
-//     // OKE
-//     // oke
-//     // Oke
-//     // 0K
-//     // 0ke
-//     if (!/^(ok|oke|0k|0ke)$/i.test(text)) return
 
-//     try {
-//         await sock.sendMessage(
-//             TARGET_GROUP,
-//             {
-//                 text: "Jangan lupa bukti FU di-upload di Paperwork yang sudah disediakan."
-//             },
-//             {
-//                 quoted: msg
-//             }
-//         )
+        // anti duplicate message
+        const messageId = msg.key.id
 
-//         log("✅ Auto reminder terkirim")
-//     } catch (err) {
-//         log("❌ Auto reminder gagal", err)
-//     }
-// })
+        if (processedMessages.has(messageId)) return
+
+        processedMessages.add(messageId)
+
+
+        // bersihkan memory
+        if (processedMessages.size > 1000) {
+            processedMessages.clear()
+        }
+
+
+        // hanya group tertentu
+        if (msg.key.remoteJid !== TARGET_GROUP) return
+
+
+        // abaikan pesan bot sendiri
+        if (msg.key.fromMe) return
+
+
+        const text = getMessageText(msg)
+            .trim()
+            .toLowerCase()
+
+
+        // trigger:
+        // ok
+        // oke
+        // 0k
+        // 0ke
+
+        if (!/^(ok|oke|0k|0ke)$/i.test(text)) {
+            return
+        }
+
+
+        try {
+
+            await sock.sendMessage(
+                TARGET_GROUP,
+                {
+                    text:
+                        "Jangan lupa bukti FU di-upload di Paperwork yang sudah disediakan."
+                },
+                {
+                    quoted: msg
+                }
+            )
+
+
+            log("✅ Auto reminder terkirim")
+
+        } catch (err) {
+
+            log(
+                "❌ Auto reminder gagal:",
+                err.message
+            )
+
+        }
+
+    })
+
+}
 
 // ================= SERVER =================
 
