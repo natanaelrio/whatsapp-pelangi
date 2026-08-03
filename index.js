@@ -117,6 +117,7 @@ async function startWA() {
     })
 
     sock.ev.on("creds.update", saveCreds)
+    log("✅ messages.upsert listener dipasang")
 
     // ================= AUTO REMINDER GROUP =================
 
@@ -137,67 +138,54 @@ async function startWA() {
 
     }
 
-    // TEST MESSAGE + AUTO REMINDER
     sock.ev.on("messages.upsert", async ({ messages, type }) => {
 
-        log("🔥 EVENT MESSAGE MASUK", type)
-
-        if (type !== "notify") return
-
-
         const msg = messages[0]
-
         if (!msg?.message) return
 
+        const text = getMessageText(msg).trim()
 
-        log({
-            jid: msg.key.remoteJid,
-            fromMe: msg.key.fromMe,
-            participant: msg.key.participant,
-            text:
-                msg.message?.conversation ||
-                msg.message?.extendedTextMessage?.text ||
-                ""
-        })
+        log("========== PESAN MASUK ==========")
+        log("TYPE        :", type)
+        log("GROUP       :", msg.key.remoteJid)
+        log("FROM        :", msg.key.participant)
+        log("FROM ME     :", msg.key.fromMe)
+        log("TEXT        :", text)
+        log("=================================")
 
+        if (type !== "notify") {
+            log("Lewat: bukan notify")
+            return
+        }
 
-        // hanya grup target
         if (msg.key.remoteJid !== TARGET_GROUP) {
+            log("Lewat: bukan grup target")
             return
         }
 
-
-        if (msg.key.fromMe) return
-
-
-        const text = (
-            msg.message?.conversation ||
-            msg.message?.extendedTextMessage?.text ||
-            ""
-        )
-            .trim()
-            .toLowerCase()
-
-
-        if (!/^(ok|oke|0k|0ke)$/i.test(text)) {
+        if (msg.key.fromMe) {
+            log("Lewat: pesan sendiri")
             return
         }
 
+        if (!/^(ok|oke|0k|0ke)$/i.test(text.trim())) {
+            log("Lewat: bukan OK")
+            return
+        }
+
+        log("MATCH -> kirim reminder")
 
         await sock.sendMessage(
             TARGET_GROUP,
             {
-                text:
-                    "Jangan lupa bukti FU di-upload di Paperwork yang sudah disediakan."
+                text: "Jangan lupa bukti FU di-upload di Paperwork yang sudah disediakan."
             },
             {
                 quoted: msg
             }
         )
 
-
-        log("✅ Auto reminder terkirim")
-
+        log("Reminder berhasil dikirim")
     })
 
     sock.ev.on("connection.update", async (update) => {
