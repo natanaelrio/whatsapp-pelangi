@@ -121,6 +121,27 @@ async function startWA() {
 
     sock.ev.on("creds.update", saveCreds)
 
+    // TEST EVENT
+    sock.ev.on("messages.upsert", async ({ messages, type }) => {
+
+        log("🔥 EVENT MESSAGE MASUK", type)
+
+        const msg = messages[0]
+
+        if (!msg?.message) {
+            log("❌ Tidak ada message")
+            return
+        }
+
+
+        log({
+            jid: msg.key.remoteJid,
+            fromMe: msg.key.fromMe,
+            participant: msg.key.participant
+        })
+
+    })
+
     sock.ev.on("connection.update", async (update) => {
         const { connection, lastDisconnect, qr } = update
 
@@ -145,8 +166,6 @@ async function startWA() {
         }
     })
 }
-
-startWA()
 
 // ================= UTIL =================
 
@@ -293,6 +312,9 @@ function setupAutoReminder() {
     })
 
 }
+
+
+startWA()
 
 // ================= SERVER =================
 
