@@ -116,29 +116,98 @@ async function startWA() {
         emitOwnEvents: false
     })
 
-    // START AUTO REMINDER
-    setupAutoReminder()
-
     sock.ev.on("creds.update", saveCreds)
 
-    // TEST EVENT
+    // ================= AUTO REMINDER GROUP =================
+
+    const TARGET_GROUP = "120363406595440008@g.us"
+
+    const processedMessages = new Set()
+
+
+    function getMessageText(msg) {
+
+        return (
+            msg.message?.conversation ||
+            msg.message?.extendedTextMessage?.text ||
+            msg.message?.imageMessage?.caption ||
+            msg.message?.videoMessage?.caption ||
+            ""
+        )
+
+    }
+
+    // TEST MESSAGE + AUTO REMINDER
     sock.ev.on("messages.upsert", async ({ messages, type }) => {
+
 
         log("🔥 EVENT MESSAGE MASUK", type)
 
+        if (type !== "notify") return
+
         const msg = messages[0]
 
-        if (!msg?.message) {
-            log("❌ Tidak ada message")
-            return
-        }
+        if (!msg?.message) return
 
+
+        const messageId = msg.key.id
+
+        if (processedMessages.has(messageId)) return
+
+        processedMessages.add(messageId)
+
+
+        if (processedMessages.size > 1000) {
+            processedMessages.clear()
+        }
 
         log({
             jid: msg.key.remoteJid,
             fromMe: msg.key.fromMe,
-            participant: msg.key.participant
+            participant: msg.key.participant,
+            text:
+                msg.message?.conversation ||
+                msg.message?.extendedTextMessage?.text ||
+                ""
         })
+
+
+        // hanya grup target
+        if (msg.key.remoteJid !== TARGET_GROUP) {
+            return
+        }
+
+
+        if (msg.key.fromMe) return
+
+
+        const text = (
+            msg.message?.conversation ||
+            msg.message?.extendedTextMessage?.text ||
+            ""
+        )
+            .trim()
+            .toLowerCase()
+
+
+        if (!/^(ok|oke|0k|0ke)$/i.test(text)) {
+            return
+        }
+
+
+        await sock.sendMessage(
+            TARGET_GROUP,
+            {
+                text:
+                    "Jangan lupa bukti FU di-upload di Paperwork yang sudah disediakan."
+            },
+            {
+                quoted: msg
+            }
+        )
+
+
+        log("✅ Auto reminder terkirim")
 
     })
 
@@ -220,98 +289,6 @@ app.get("/groups", async (req, res) => {
 
     res.json(list)
 })
-
-// ================= AUTO REMINDER GROUP =================
-
-const TARGET_GROUP = "120363406595440008@g.us"
-
-const processedMessages = new Set()
-
-function getMessageText(msg) {
-    return (
-        msg.message?.conversation ||
-        msg.message?.extendedTextMessage?.text ||
-        msg.message?.imageMessage?.caption ||
-        msg.message?.videoMessage?.caption ||
-        ""
-    )
-}
-
-
-function setupAutoReminder() {
-
-    sock.ev.on("messages.upsert", async ({ messages, type }) => {
-
-        if (type !== "notify") return
-
-        const msg = messages[0]
-
-        if (!msg?.message) return
-
-
-        // anti double proses
-        const messageId = msg.key.id
-
-        if (processedMessages.has(messageId)) return
-
-        processedMessages.add(messageId)
-
-
-        // hanya group tertentu
-        if (msg.key.remoteJid !== TARGET_GROUP) return
-
-
-        // abaikan pesan dari bot sendiri
-        if (msg.key.fromMe) return
-
-
-        const text = getMessageText(msg)
-            .trim()
-            .toLowerCase()
-
-        // LOG PESAN MASUK
-        log(
-            "📩 Pesan masuk:",
-            {
-                dari: msg.key.participant || msg.key.remoteJid,
-                group: msg.key.remoteJid,
-                pesan: text
-            }
-        )
-
-        // trigger OK / OKE / 0K / 0KE
-        if (!/^(ok|oke|0k|0ke)$/i.test(text)) {
-            return
-        }
-
-
-        try {
-
-            await sock.sendMessage(
-                TARGET_GROUP,
-                {
-                    text: "Jangan lupa bukti FU di-upload di Paperwork yang sudah disediakan.  "
-                },
-                {
-                    quoted: msg
-                }
-            )
-
-
-            log("✅ Auto reminder terkirim")
-
-        } catch (err) {
-
-            log(
-                "❌ Auto reminder gagal:",
-                err.message
-            )
-
-        }
-
-    })
-
-}
 
 
 startWA()
