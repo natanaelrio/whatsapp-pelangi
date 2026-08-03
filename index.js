@@ -250,6 +250,15 @@ function setupAutoReminder() {
             .trim()
             .toLowerCase()
 
+        // LOG PESAN MASUK
+        log(
+            "📩 Pesan masuk:",
+            {
+                dari: msg.key.participant || msg.key.remoteJid,
+                group: msg.key.remoteJid,
+                pesan: text
+            }
+        )
 
         // trigger OK / OKE / 0K / 0KE
         if (!/^(ok|oke|0k|0ke)$/i.test(text)) {
