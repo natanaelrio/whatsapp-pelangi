@@ -175,15 +175,21 @@ async function startWA() {
 
         log("MATCH -> kirim reminder")
 
-        await sock.sendMessage(
-            TARGET_GROUP,
-            {
-                text: "Jangan lupa bukti FU di-upload di Paperwork yang sudah disediakan."
-            },
-            {
-                quoted: msg
-            }
-        )
+        try {
+            await sock.sendMessage(
+                TARGET_GROUP,
+                {
+                    text: "Jangan lupa bukti FU di-upload di Paperwork yang sudah disediakan."
+                },
+                {
+                    quoted: msg
+                }
+            )
+
+            log("Reminder berhasil dikirim")
+        } catch (err) {
+            log("Gagal kirim reminder:", err)
+        }
 
         log("Reminder berhasil dikirim")
     })
