@@ -72,6 +72,8 @@ if (!fs.existsSync(sessionPath)) {
 }
 
 let sock
+let reconnectTimer = null
+let startWAInProgress = false
 
 // ================= GROUP CACHE =================
 
@@ -92,131 +94,195 @@ async function getGroupMeta(jid) {
     return meta
 }
 
+// ================= PIC MAP =================
+const PIC_MAP = {
+    "6285938552586": {
+        name: "Alma",
+        sheet: "https://docs.google.com/spreadsheets/d/1AMNL3ksGukcge1PKfryXyl5ltqpG1wJIOxy0AcTCDh8/edit?usp=sharing"
+    },
+    "6281944289494": {
+        name: "Azzah",
+        sheet: "https://docs.google.com/spreadsheets/d/1kwflxpm-fhoTBeXrKiNLG5fpqbePbyHeqJA-BpFK8JU/edit?usp=sharing"
+    },
+    "6285195219494": {
+        name: "Dhita",
+        sheet: "https://docs.google.com/spreadsheets/d/145TubMhBx6uEULDBEWZHai1XlZ8fXWQZxrHflx4qnuE/edit?usp=sharing"
+    },
+    "6285931461247": {
+        name: "Erik",
+        sheet: "https://docs.google.com/spreadsheets/d/1q2hLw077h8uJAYJMu3uxT-TxT3HV78DojFAvhI7T7hY/edit?usp=sharing"
+    },
+    "6287739235740": {
+        name: "Ina",
+        sheet: "https://docs.google.com/spreadsheets/d/1cdqnGEwlbPCJUmyvqaOnTdq6y0CPD1PA_r9EzMX9hBY/edit?usp=sharing"
+    },
+    "628971041460": {
+        name: "Rio",
+        sheet: "https://docs.google.com/spreadsheets/d/1cdqnGEwlbPCJUmyvqaOnTdq6y0CPD1PA_r9EzMX9hBY/edit?usp=sharing"
+    }
+}
+
+function normalizeParticipant(jid = "") {
+    return jid.split("@")[0]
+}
+
+
 // ================= START WA =================
 
 async function startWA() {
-    const { state, saveCreds } = await useMultiFileAuthState(sessionPath)
-    const { version } = await fetchLatestBaileysVersion()
+    if (startWAInProgress) return
+    startWAInProgress = true
 
-    sock = makeWASocket({
-        logger: pino({ level: "silent" }),
-        printQRInTerminal: true,
-        auth: state,
-        version,
-        browser: ["WA API", "Chrome", "1.0"],
+    try {
+        const { state, saveCreds } = await useMultiFileAuthState(sessionPath)
+        const { version } = await fetchLatestBaileysVersion()
 
-        syncFullHistory: false,
-        markOnlineOnConnect: false,
-        generateHighQualityLinkPreview: false,
+        sock = makeWASocket({
+            logger: pino({ level: "silent" }),
+            auth: state,
+            version,
+            browser: ["WA API", "Chrome", "1.0"],
 
-        connectTimeoutMs: 60_000,
-        defaultQueryTimeoutMs: 0,
+            syncFullHistory: false,
+            markOnlineOnConnect: false,
+            generateHighQualityLinkPreview: false,
 
-        keepAliveIntervalMs: 15_000,
-        emitOwnEvents: false
-    })
+            connectTimeoutMs: 60_000,
+            defaultQueryTimeoutMs: 0,
 
-    sock.ev.on("creds.update", saveCreds)
-    log("✅ messages.upsert listener dipasang")
+            keepAliveIntervalMs: 15_000,
+            emitOwnEvents: false
+        })
 
-    // ================= AUTO REMINDER GROUP =================
+        sock.ev.on("creds.update", saveCreds)
+        log("✅ messages.upsert listener dipasang")
 
-    const TARGET_GROUP = "120363406595440008@g.us"
+        // ================= AUTO REMINDER GROUP =================
 
-    const processedMessages = new Set()
+        const TARGET_GROUP = "120363406595440008@g.us"
 
+        function getMessageText(msg) {
 
-    function getMessageText(msg) {
-
-        return (
-            msg.message?.conversation ||
-            msg.message?.extendedTextMessage?.text ||
-            msg.message?.imageMessage?.caption ||
-            msg.message?.videoMessage?.caption ||
-            ""
-        )
-
-    }
-
-    sock.ev.on("messages.upsert", async ({ messages, type }) => {
-
-        const msg = messages[0]
-        if (!msg?.message) return
-
-        const text = getMessageText(msg).trim()
-
-        log("========== PESAN MASUK ==========")
-        log("TYPE        :", type)
-        log("GROUP       :", msg.key.remoteJid)
-        log("FROM        :", msg.key.participant)
-        log("FROM ME     :", msg.key.fromMe)
-        log("TEXT        :", text)
-        log("=================================")
-
-        if (type !== "notify") {
-            log("Lewat: bukan notify")
-            return
-        }
-
-        if (msg.key.remoteJid !== TARGET_GROUP) {
-            log("Lewat: bukan grup target")
-            return
-        }
-
-        if (msg.key.fromMe) {
-            log("Lewat: pesan sendiri")
-            return
-        }
-
-        if (!/^(ok|oke|0k|0ke)$/i.test(text.trim())) {
-            log("Lewat: bukan OK")
-            return
-        }
-
-        log("MATCH -> kirim reminder")
-
-        try {
-            await sock.sendMessage(
-                TARGET_GROUP,
-                {
-                    text: "Jangan lupa bukti FU di-upload di Paperwork yang sudah disediakan."
-                },
-                {
-                    quoted: msg
-                }
+            return (
+                msg.message?.conversation ||
+                msg.message?.extendedTextMessage?.text ||
+                msg.message?.imageMessage?.caption ||
+                msg.message?.videoMessage?.caption ||
+                ""
             )
 
-            log("Reminder berhasil dikirim")
-        } catch (err) {
-            log("Gagal kirim reminder:", err)
         }
 
-        log("Reminder berhasil dikirim")
-    })
+        sock.ev.on("messages.upsert", async ({ messages, type }) => {
 
-    sock.ev.on("connection.update", async (update) => {
-        const { connection, lastDisconnect, qr } = update
+            const msg = messages[0]
+            if (!msg?.message) return
 
-        if (qr) {
-            log("📱 Scan QR untuk login")
-            qrcode.generate(qr, { small: true })
-        }
+            const text = getMessageText(msg).trim()
 
-        if (connection === "open") {
-            groupCache.clear()
-            await preloadGroupCache()
-            log("✅ WhatsApp siap digunakan")
-        }
+            log("========== PESAN MASUK ==========")
+            log("TYPE        :", type)
+            log("GROUP       :", msg.key.remoteJid)
+            log("FROM        :", msg.key.participant)
+            log("FROM ME     :", msg.key.fromMe)
+            log("TEXT        :", text)
+            log("=================================")
 
-        if (connection === "close") {
-            const shouldReconnect =
-                lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
+            if (type !== "notify") {
+                log("Lewat: bukan notify")
+                return
+            }
 
-            log("❌ Terputus, reconnect:", shouldReconnect)
+            if (msg.key.remoteJid !== TARGET_GROUP) {
+                log("Lewat: bukan grup target")
+                return
+            }
 
-            if (shouldReconnect) startWA()
-        }
-    })
+            if (msg.key.fromMe) {
+                log("Lewat: pesan sendiri")
+                return
+            }
+
+            if (!/^(ok|oke|0k|0ke)$/i.test(text.trim())) {
+                log("Lewat: bukan OK")
+                return
+            }
+
+            log("MATCH -> kirim reminder")
+
+            const sender = normalizeParticipant(msg.key.participant)
+            const pic = PIC_MAP[sender]
+
+            if (!pic) {
+                log(`Nomor ${sender} tidak ada di PIC_MAP`)
+                return
+            }
+
+            const reminder =
+                `Hallo ${pic.name},
+
+Jangan lupa bukti FU di-upload di Paperwork yang sudah disediakan.
+
+Link Google Sheets:
+${pic.sheet}`
+
+            try {
+                await sock.sendMessage(
+                    TARGET_GROUP,
+                    {
+                        text: reminder
+                    },
+                    {
+                        quoted: msg
+                    }
+                )
+
+                log(`Reminder berhasil dikirim ke ${pic.name}`)
+            } catch (err) {
+                log("Gagal kirim reminder:", err)
+            }
+        })
+
+        sock.ev.on("connection.update", async (update) => {
+            const { connection, lastDisconnect, qr } = update
+            const statusCode = lastDisconnect?.error?.output?.statusCode
+
+            if (qr) {
+                log("📱 Scan QR untuk login")
+                qrcode.generate(qr, { small: true })
+            }
+
+            if (connection === "open") {
+                groupCache.clear()
+                await preloadGroupCache()
+                log("✅ WhatsApp siap digunakan")
+            }
+
+            if (connection === "close") {
+                const shouldReconnect = statusCode !== DisconnectReason.loggedOut
+
+                log("❌ Terputus. statusCode:", statusCode, "reconnect:", shouldReconnect)
+
+                if (!shouldReconnect) {
+                    log("🧹 Session invalid, membersihkan auth dan login ulang via QR")
+                    fs.rmSync(sessionPath, { recursive: true, force: true })
+                    fs.mkdirSync(sessionPath, { recursive: true })
+                    if (reconnectTimer) clearTimeout(reconnectTimer)
+                    reconnectTimer = setTimeout(() => startWA(), 1500)
+                    return
+                }
+
+                if (reconnectTimer) clearTimeout(reconnectTimer)
+                reconnectTimer = setTimeout(() => startWA(), 2000)
+            }
+        })
+    } catch (err) {
+        log("❌ Gagal startWA:", err)
+        if (reconnectTimer) clearTimeout(reconnectTimer)
+        reconnectTimer = setTimeout(() => startWA(), 3000)
+    } finally {
+        startWAInProgress = false
+    }
 }
 
 // ================= UTIL =================
