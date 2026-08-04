@@ -119,6 +119,10 @@ const PIC_MAP = {
     "177708701057272": {
         name: "Sifa",
         sheet: "https://docs.google.com/spreadsheets/d/1ALfV0mQOTkv4Qjpp7dvx0XVZSn5vXFwcYIxF24GVvLQ/edit?usp=sharing"
+    },
+    "275071314731206": {
+        name: "Rio",
+        sheet: "https://docs.google.com/spreadsheets/d/1ALfV0mQOTkv4Qjpp7dvx0XVZSn5vXFwcYIxF24GVvLQ/edit?usp=sharing"
     }
 }
 
@@ -161,9 +165,13 @@ async function startWA() {
 
         // ================= AUTO REMINDER GROUP =================
 
-        // const TARGET_GROUP = "120363406595440008@g.us"
-        const TARGET_GROUP = "120363021369281320@g.us"
+        const TARGET_GROUP = "120363406595440008@g.us"
+        // const TARGET_GROUP = "120363021369281320@g.us"
 
+        const TARGET_GROUPS = [
+            "120363406595440008@g.us",
+            "120363021369281320@g.us"
+        ]
         function getMessageText(msg) {
 
             return (
@@ -196,7 +204,7 @@ async function startWA() {
                 return
             }
 
-            if (msg.key.remoteJid !== TARGET_GROUP) {
+            if (!TARGET_GROUPS.includes(msg.key.remoteJid)) {
                 log("Lewat: bukan grup target")
                 return
             }
@@ -206,7 +214,7 @@ async function startWA() {
                 return
             }
 
-            if (!/^(ok|oke|0k|0ke)$/i.test(text.trim())) {
+            if (!/(ok|oke|0k|0ke)/i.test(text)) {
                 log("Lewat: bukan OK")
                 return
             }
@@ -231,7 +239,7 @@ ${pic.sheet}`
 
             try {
                 await sock.sendMessage(
-                    TARGET_GROUP,
+                    msg.key.remoteJid,
                     {
                         text: reminder
                     },
