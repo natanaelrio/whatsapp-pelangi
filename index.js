@@ -98,27 +98,27 @@ async function getGroupMeta(jid) {
 const PIC_MAP = {
     "70884224147606": {
         name: "Alma",
-        sheet: "https://docs.google.com/spreadsheets/d/1AMNL3ksGukcge1PKfryXyl5ltqpG1wJIOxy0AcTCDh8/edit?usp=sharing"
+        sheet: "https://docs.google.com/spreadsheets/d/1AMNL3ksGukcge1PKfryXyl5ltqpG1wJIOxy0AcTCDh8/edit?gid=772573327#gid=772573327"
     },
     "84581344608298": {
         name: "Azzah",
-        sheet: "https://docs.google.com/spreadsheets/d/1kwflxpm-fhoTBeXrKiNLG5fpqbePbyHeqJA-BpFK8JU/edit?usp=sharing"
+        sheet: "https://docs.google.com/spreadsheets/d/1kwflxpm-fhoTBeXrKiNLG5fpqbePbyHeqJA-BpFK8JU/edit?gid=231053020#gid=231053020"
     },
     "45552674852937": {
         name: "Dhita",
-        sheet: "https://docs.google.com/spreadsheets/d/145TubMhBx6uEULDBEWZHai1XlZ8fXWQZxrHflx4qnuE/edit?usp=sharing"
+        sheet: "https://docs.google.com/spreadsheets/d/145TubMhBx6uEULDBEWZHai1XlZ8fXWQZxrHflx4qnuE/edit?gid=1854339753#gid=1854339753"
     },
     "138260047257624": {
         name: "Erik",
-        sheet: "https://docs.google.com/spreadsheets/d/1q2hLw077h8uJAYJMu3uxT-TxT3HV78DojFAvhI7T7hY/edit?usp=sharing"
+        sheet: "https://docs.google.com/spreadsheets/d/1q2hLw077h8uJAYJMu3uxT-TxT3HV78DojFAvhI7T7hY/edit?gid=147428211#gid=147428211"
     },
     "61091681939696": {
         name: "Ina",
-        sheet: "https://docs.google.com/spreadsheets/d/1cdqnGEwlbPCJUmyvqaOnTdq6y0CPD1PA_r9EzMX9hBY/edit?usp=sharing"
+        sheet: "https://docs.google.com/spreadsheets/d/1cdqnGEwlbPCJUmyvqaOnTdq6y0CPD1PA_r9EzMX9hBY/edit?gid=1626117204#gid=1626117204"
     },
     "177708701057272": {
         name: "Sifa",
-        sheet: "https://docs.google.com/spreadsheets/d/1ALfV0mQOTkv4Qjpp7dvx0XVZSn5vXFwcYIxF24GVvLQ/edit?usp=sharing"
+        sheet: "https://docs.google.com/spreadsheets/d/1ALfV0mQOTkv4Qjpp7dvx0XVZSn5vXFwcYIxF24GVvLQ/edit?gid=1341989381#gid=1341989381"
     },
     "275071314731206": {
         name: "Rio",
