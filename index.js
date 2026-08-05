@@ -75,6 +75,17 @@ let sock
 let reconnectTimer = null
 let startWAInProgress = false
 
+const SESSION_RESET_CODES = new Set([
+    DisconnectReason.loggedOut,
+    DisconnectReason.badSession,
+    DisconnectReason.connectionReplaced
+])
+
+function resetSessionFiles() {
+    fs.rmSync(sessionPath, { recursive: true, force: true })
+    fs.mkdirSync(sessionPath, { recursive: true })
+}
+
 // ================= GROUP CACHE =================
 
 const groupCache = new Map()
@@ -270,25 +281,29 @@ ${pic.sheet}`
             }
 
             if (connection === "close") {
-                const shouldReconnect = statusCode !== DisconnectReason.loggedOut
+                const shouldResetSession = SESSION_RESET_CODES.has(statusCode)
+                const shouldReconnect = !shouldResetSession
 
                 log("❌ Terputus. statusCode:", statusCode, "reconnect:", shouldReconnect)
 
-                if (!shouldReconnect) {
-                    log("🧹 Session invalid, membersihkan auth dan login ulang via QR")
-                    fs.rmSync(sessionPath, { recursive: true, force: true })
-                    fs.mkdirSync(sessionPath, { recursive: true })
+                if (shouldResetSession) {
+                    log("🧹 Session invalid / conflict, membersihkan auth dan login ulang via QR")
+                    resetSessionFiles()
                     if (reconnectTimer) clearTimeout(reconnectTimer)
                     reconnectTimer = setTimeout(() => startWA(), 1500)
                     return
                 }
 
                 if (reconnectTimer) clearTimeout(reconnectTimer)
-                reconnectTimer = setTimeout(() => startWA(), 2000)
+                reconnectTimer = setTimeout(() => startWA(), 10000)
             }
         })
     } catch (err) {
         log("❌ Gagal startWA:", err)
+        if (String(err?.message || err).includes("Bad MAC")) {
+            log("🧹 Bad MAC terdeteksi, membersihkan session auth")
+            resetSessionFiles()
+        }
         if (reconnectTimer) clearTimeout(reconnectTimer)
         reconnectTimer = setTimeout(() => startWA(), 3000)
     } finally {
