@@ -75,11 +75,7 @@ let sock
 let reconnectTimer = null
 let startWAInProgress = false
 
-const SESSION_RESET_CODES = new Set([
-    DisconnectReason.loggedOut,
-    DisconnectReason.badSession,
-    DisconnectReason.connectionReplaced
-])
+const SESSION_RESET_CODES = new Set([])
 
 function resetSessionFiles() {
     fs.rmSync(sessionPath, { recursive: true, force: true })
@@ -140,7 +136,8 @@ const PIC_MAP = {
 
 
 function normalizeParticipant(jid = "") {
-    return jid.split("@")[0]
+    const value = typeof jid === "string" ? jid : ""
+    return value.split("@")[0]
 }
 
 
@@ -232,8 +229,13 @@ async function startWA() {
 
             log("MATCH -> kirim reminder")
 
-            const sender = normalizeParticipant(msg.key.participant)
+            const sender = normalizeParticipant(msg.key.participant || msg.key.remoteJid)
             const pic = PIC_MAP[sender]
+
+            if (!sender) {
+                log("Lewat: participant kosong")
+                return
+            }
 
             if (!pic) {
                 log(`Nomor ${sender} tidak ada di PIC_MAP`)
@@ -281,18 +283,10 @@ ${pic.sheet}`
             }
 
             if (connection === "close") {
-                const shouldResetSession = SESSION_RESET_CODES.has(statusCode)
-                const shouldReconnect = !shouldResetSession
+                const shouldReconnect = true
 
                 log("❌ Terputus. statusCode:", statusCode, "reconnect:", shouldReconnect)
-
-                if (shouldResetSession) {
-                    log("🧹 Session invalid / conflict, membersihkan auth dan login ulang via QR")
-                    resetSessionFiles()
-                    if (reconnectTimer) clearTimeout(reconnectTimer)
-                    reconnectTimer = setTimeout(() => startWA(), 1500)
-                    return
-                }
+                log("🔒 Session auth dipertahankan; mencoba reconnect tanpa menghapus file session")
 
                 if (reconnectTimer) clearTimeout(reconnectTimer)
                 reconnectTimer = setTimeout(() => startWA(), 10000)
