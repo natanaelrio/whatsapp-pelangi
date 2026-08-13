@@ -15,6 +15,8 @@ import path from "path"
 
 dotenv.config()
 
+const DEBUG_PINO = process.env.DEBUG_PINO === "1"
+
 // ================= FILTER LOG SESSION =================
 
 const originalLog = console.log
@@ -152,7 +154,7 @@ async function startWA() {
         const { version } = await fetchLatestBaileysVersion()
 
         sock = makeWASocket({
-            logger: pino({ level: "silent" }),
+            logger: pino({ level: DEBUG_PINO ? "debug" : "silent" }),
             auth: state,
             version,
             browser: ["WA API", "Chrome", "1.0"],
@@ -177,6 +179,23 @@ async function startWA() {
                 log("RAW messages.upsert:", JSON.stringify(payload, null, 2))
             } catch (e) {
                 log("RAW messages.upsert: (unable to stringify)", e)
+            }
+        })
+
+        // Additional debug listeners
+        sock.ev.on("messages.update", (payload) => {
+            try {
+                log("messages.update:", JSON.stringify(payload, null, 2))
+            } catch (e) {
+                log("messages.update: (unable to stringify)", e)
+            }
+        })
+
+        sock.ev.on("chats.update", (payload) => {
+            try {
+                log("chats.update:", JSON.stringify(payload, null, 2))
+            } catch (e) {
+                log("chats.update: (unable to stringify)", e)
             }
         })
 
