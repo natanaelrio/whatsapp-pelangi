@@ -15,8 +15,6 @@ import path from "path"
 
 dotenv.config()
 
-const DEBUG_PINO = process.env.DEBUG_PINO === "1"
-
 // ================= FILTER LOG SESSION =================
 
 const originalLog = console.log
@@ -154,7 +152,7 @@ async function startWA() {
         const { version } = await fetchLatestBaileysVersion()
 
         sock = makeWASocket({
-            logger: pino({ level: DEBUG_PINO ? "debug" : "silent" }),
+            logger: pino({ level: "silent" }),
             auth: state,
             version,
             browser: ["WA API", "Chrome", "1.0"],
@@ -172,32 +170,6 @@ async function startWA() {
 
         sock.ev.on("creds.update", saveCreds)
         log("✅ messages.upsert listener dipasang")
-
-        // Debug: log raw messages.upsert payloads for diagnosis (remove after debugging)
-        sock.ev.on("messages.upsert", (payload) => {
-            try {
-                log("RAW messages.upsert:", JSON.stringify(payload, null, 2))
-            } catch (e) {
-                log("RAW messages.upsert: (unable to stringify)", e)
-            }
-        })
-
-        // Additional debug listeners
-        sock.ev.on("messages.update", (payload) => {
-            try {
-                log("messages.update:", JSON.stringify(payload, null, 2))
-            } catch (e) {
-                log("messages.update: (unable to stringify)", e)
-            }
-        })
-
-        sock.ev.on("chats.update", (payload) => {
-            try {
-                log("chats.update:", JSON.stringify(payload, null, 2))
-            } catch (e) {
-                log("chats.update: (unable to stringify)", e)
-            }
-        })
 
         // ================= AUTO REMINDER GROUP =================
 
@@ -222,14 +194,8 @@ async function startWA() {
 
         sock.ev.on("messages.upsert", async ({ messages, type }) => {
 
-            log("messages.upsert invoked, type:", type, "count:", messages?.length)
             const msg = messages[0]
-            log("msg.key:", JSON.stringify(msg?.key || {}, null, 2))
-
-            if (!msg?.message) {
-                log("Lewat: pesan tanpa body")
-                return
-            }
+            if (!msg?.message) return
 
             const text = getMessageText(msg).trim()
 
