@@ -201,7 +201,7 @@ async function startWA() {
 
         // ================= AUTO REMINDER GROUP =================
 
-        const TARGET_GROUP = "120363406595440008@g.us"
+        // const TARGET_GROUP = "120363406595440008@g.us"
         // const TARGET_GROUP = "120363021369281320@g.us"
 
         const TARGET_GROUPS = [
