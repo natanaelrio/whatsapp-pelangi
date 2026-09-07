@@ -75,13 +75,6 @@ let sock
 let reconnectTimer = null
 let startWAInProgress = false
 
-const SESSION_RESET_CODES = new Set([])
-
-function resetSessionFiles() {
-    fs.rmSync(sessionPath, { recursive: true, force: true })
-    fs.mkdirSync(sessionPath, { recursive: true })
-}
-
 // ================= GROUP CACHE =================
 
 const groupCache = new Map()
@@ -283,9 +276,15 @@ ${pic.sheet}`
             }
 
             if (connection === "close") {
-                const shouldReconnect = true
+                const shouldReconnect = statusCode !== DisconnectReason.loggedOut
 
                 log("❌ Terputus. statusCode:", statusCode, "reconnect:", shouldReconnect)
+
+                if (!shouldReconnect) {
+                    log("🔒 WhatsApp menganggap session logout. File session dipertahankan; scan QR diperlukan untuk login ulang")
+                    return
+                }
+
                 log("🔒 Session auth dipertahankan; mencoba reconnect tanpa menghapus file session")
 
                 if (reconnectTimer) clearTimeout(reconnectTimer)
@@ -295,8 +294,7 @@ ${pic.sheet}`
     } catch (err) {
         log("❌ Gagal startWA:", err)
         if (String(err?.message || err).includes("Bad MAC")) {
-            log("🧹 Bad MAC terdeteksi, membersihkan session auth")
-            resetSessionFiles()
+            log("⚠️ Bad MAC terdeteksi. File session tidak dihapus; hapus folder session secara manual hanya jika memang ingin login ulang")
         }
         if (reconnectTimer) clearTimeout(reconnectTimer)
         reconnectTimer = setTimeout(() => startWA(), 3000)
