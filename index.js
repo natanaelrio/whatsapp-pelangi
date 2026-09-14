@@ -12,24 +12,11 @@ import cors from "cors"
 import dotenv from "dotenv"
 import fs from "fs"
 import path from "path"
+import { installLogFilter } from "./logFilter.js"
 
 dotenv.config()
 
-// ================= FILTER LOG SESSION =================
-
-const originalLog = console.log
-console.log = (...args) => {
-    if (
-        typeof args[0] === "string" &&
-        (
-            args[0].includes("Closing session") ||
-            args[0].includes("SessionEntry") ||
-            args[0].includes("_chains")
-        )
-    ) return
-
-    originalLog(...args)
-}
+installLogFilter()
 
 // ================= LOGGER =================
 
@@ -71,9 +58,36 @@ if (!fs.existsSync(sessionPath)) {
     fs.mkdirSync(sessionPath, { recursive: true })
 }
 
+const existingSessionDetect = path.join(sessionPath, "creds.json")
+const hasExistingSession = fs.existsSync(existingSessionDetect)
+
 let sock
 let reconnectTimer = null
 let startWAInProgress = false
+const MAX_RECONNECT_ATTEMPTS = 5
+let reconnectAttempts = 0
+
+function resetReconnectState() {
+    reconnectAttempts = 0
+    if (reconnectTimer) {
+        clearTimeout(reconnectTimer)
+        reconnectTimer = null
+    }
+}
+
+function scheduleStartWA(delay = 10000) {
+    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+        log("⚠️ Reconnect attempts mencapai batas. Mohon bot di-restart atau session QR di-scan ulang.")
+        return
+    }
+
+    if (reconnectTimer) clearTimeout(reconnectTimer)
+    reconnectTimer = setTimeout(() => {
+        reconnectTimer = null
+        reconnectAttempts += 1
+        startWA()
+    }, delay)
+}
 
 // ================= GROUP CACHE =================
 
@@ -141,8 +155,19 @@ async function startWA() {
     startWAInProgress = true
 
     try {
+        if (hasExistingSession) {
+            log("🛡️ Mempertahankan session yang ada saja; tidak menghapus atau mereset folder auth session")
+        } else {
+            log("ℹ️ Belum ada session tersimpan. Session baru akan dibuat saat QR login berhasil")
+        }
+
         const { state, saveCreds } = await useMultiFileAuthState(sessionPath)
         const { version } = await fetchLatestBaileysVersion()
+
+        if (!state) {
+            log("⚠️ Auth state belum siap; menunda start WA")
+            return
+        }
 
         sock = makeWASocket({
             logger: pino({ level: "silent" }),
@@ -281,14 +306,13 @@ ${pic.sheet}`
                 log("❌ Terputus. statusCode:", statusCode, "reconnect:", shouldReconnect)
 
                 if (!shouldReconnect) {
-                    log("🔒 WhatsApp menganggap session logout. File session dipertahankan; scan QR diperlukan untuk login ulang")
+                    log("🔒 WhatsApp menganggap session logout. Session lama dipertahankan; scan QR diperlukan untuk login ulang tanpa menghapus folder auth")
+                    resetReconnectState()
                     return
                 }
 
                 log("🔒 Session auth dipertahankan; mencoba reconnect tanpa menghapus file session")
-
-                if (reconnectTimer) clearTimeout(reconnectTimer)
-                reconnectTimer = setTimeout(() => startWA(), 10000)
+                scheduleStartWA(10000)
             }
         })
     } catch (err) {
@@ -296,8 +320,7 @@ ${pic.sheet}`
         if (String(err?.message || err).includes("Bad MAC")) {
             log("⚠️ Bad MAC terdeteksi. File session tidak dihapus; hapus folder session secara manual hanya jika memang ingin login ulang")
         }
-        if (reconnectTimer) clearTimeout(reconnectTimer)
-        reconnectTimer = setTimeout(() => startWA(), 3000)
+        scheduleStartWA(3000)
     } finally {
         startWAInProgress = false
     }
