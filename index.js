@@ -75,6 +75,23 @@ function resetReconnectState() {
     }
 }
 
+function isRecoverableDisconnect(statusCode) {
+    if (!statusCode) return true
+
+    const recoverableReasons = new Set([
+        DisconnectReason.connectionLost,
+        DisconnectReason.timedOut,
+        DisconnectReason.restartRequired,
+        DisconnectReason.badSession,
+        DisconnectReason.connectionReplaced,
+        DisconnectReason.wsDisconnected,
+        DisconnectReason.wsConnectionDropped,
+        DisconnectReason.wsConnectionDroppedCount
+    ])
+
+    return recoverableReasons.has(statusCode)
+}
+
 function scheduleStartWA(delay = 10000) {
     if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
         log("⚠️ Reconnect attempts mencapai batas. Mohon bot di-restart atau session QR di-scan ulang.")
@@ -298,15 +315,23 @@ ${pic.sheet}`
                 groupCache.clear()
                 await preloadGroupCache()
                 log("✅ WhatsApp siap digunakan")
+                resetReconnectState()
             }
 
             if (connection === "close") {
-                const shouldReconnect = statusCode !== DisconnectReason.loggedOut
+                const isLoggedOut = statusCode === DisconnectReason.loggedOut
+                const shouldReconnect = isRecoverableDisconnect(statusCode)
 
                 log("❌ Terputus. statusCode:", statusCode, "reconnect:", shouldReconnect)
 
-                if (!shouldReconnect) {
+                if (isLoggedOut) {
                     log("🔒 WhatsApp menganggap session logout. Session lama dipertahankan; scan QR diperlukan untuk login ulang tanpa menghapus folder auth")
+                    resetReconnectState()
+                    return
+                }
+
+                if (!shouldReconnect) {
+                    log("🛑 Disconnect reason tidak dapat dipulihkan; mempertahankan session dan menghentikan reconnect otomatis")
                     resetReconnectState()
                     return
                 }
@@ -320,7 +345,9 @@ ${pic.sheet}`
         if (String(err?.message || err).includes("Bad MAC")) {
             log("⚠️ Bad MAC terdeteksi. File session tidak dihapus; hapus folder session secara manual hanya jika memang ingin login ulang")
         }
-        scheduleStartWA(3000)
+        if (isRecoverableDisconnect(null)) {
+            scheduleStartWA(3000)
+        }
     } finally {
         startWAInProgress = false
     }
