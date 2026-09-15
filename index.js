@@ -82,7 +82,6 @@ function isRecoverableDisconnect(statusCode) {
         DisconnectReason.connectionLost,
         DisconnectReason.timedOut,
         DisconnectReason.restartRequired,
-        DisconnectReason.badSession,
         DisconnectReason.connectionReplaced,
         DisconnectReason.wsDisconnected,
         DisconnectReason.wsConnectionDropped,
