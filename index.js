@@ -62,9 +62,9 @@ const existingSessionDetect = path.join(sessionPath, "creds.json")
 const hasExistingSession = fs.existsSync(existingSessionDetect)
 
 let sock
+let waConnection = "close"
 let reconnectTimer = null
 let startWAInProgress = false
-const MAX_RECONNECT_ATTEMPTS = 5
 let reconnectAttempts = 0
 
 function resetReconnectState() {
@@ -92,12 +92,9 @@ function isRecoverableDisconnect(statusCode) {
 }
 
 function scheduleStartWA(delay = 10000) {
-    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-        log("⚠️ Reconnect attempts mencapai batas. Mohon bot di-restart atau session QR di-scan ulang.")
-        return
-    }
-
     if (reconnectTimer) clearTimeout(reconnectTimer)
+    const reconnectDelay = Math.min(delay * 2 ** reconnectAttempts, 60_000)
+    log(`🔁 Reconnect ke-${reconnectAttempts + 1} dijadwalkan dalam ${Math.ceil(reconnectDelay / 1000)} detik`)
     reconnectTimer = setTimeout(() => {
         reconnectTimer = null
         reconnectAttempts += 1
@@ -201,6 +198,7 @@ async function startWA() {
             keepAliveIntervalMs: 15_000,
             emitOwnEvents: false
         })
+        waConnection = "connecting"
 
         sock.ev.on("creds.update", saveCreds)
         log("✅ messages.upsert listener dipasang")
@@ -263,6 +261,11 @@ async function startWA() {
 
             log("MATCH -> kirim reminder")
 
+            if (waConnection !== "open") {
+                log("Lewat: koneksi WhatsApp belum terbuka")
+                return
+            }
+
             const sender = normalizeParticipant(msg.key.participant || msg.key.remoteJid)
             const pic = PIC_MAP[sender]
 
@@ -311,6 +314,7 @@ ${pic.sheet}`
             }
 
             if (connection === "open") {
+                waConnection = "open"
                 groupCache.clear()
                 await preloadGroupCache()
                 log("✅ WhatsApp siap digunakan")
@@ -318,6 +322,7 @@ ${pic.sheet}`
             }
 
             if (connection === "close") {
+                waConnection = "close"
                 const isLoggedOut = statusCode === DisconnectReason.loggedOut
                 const shouldReconnect = isRecoverableDisconnect(statusCode)
 
@@ -367,6 +372,9 @@ app.post("/send-person", async (req, res) => {
         return res.status(400).json({ error: "contactId & message wajib diisi" })
 
     const jid = normalizeNumber(contactId)
+    if (waConnection !== "open")
+        return res.status(503).json({ error: "WhatsApp belum terhubung" })
+
     log(`📤 Kirim ke ${jid}`)
 
     res.json({ success: true, message: "Pesan sedang dikirim" })
@@ -382,6 +390,9 @@ app.post("/send-group", async (req, res) => {
 
     if (!groupId || !message)
         return res.status(400).json({ error: "groupId & message wajib diisi" })
+
+    if (waConnection !== "open")
+        return res.status(503).json({ error: "WhatsApp belum terhubung" })
 
     log(`📤 Kirim ke grup ${groupId}`)
 
