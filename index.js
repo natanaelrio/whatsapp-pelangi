@@ -233,6 +233,8 @@ async function startWA() {
             const msg = messages[0]
             if (!msg?.message) return
 
+            if (type !== "notify" || !TARGET_GROUPS.includes(msg.key.remoteJid)) return
+
             const text = getMessageText(msg).trim()
 
             log("========== PESAN MASUK ==========")
@@ -242,16 +244,6 @@ async function startWA() {
             log("FROM ME     :", msg.key.fromMe)
             log("TEXT        :", text)
             log("=================================")
-
-            if (type !== "notify") {
-                log("Lewat: bukan notify")
-                return
-            }
-
-            if (!TARGET_GROUPS.includes(msg.key.remoteJid)) {
-                log("Lewat: bukan grup target")
-                return
-            }
 
             if (msg.key.fromMe) {
                 log("Lewat: pesan sendiri")
