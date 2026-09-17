@@ -12,6 +12,7 @@ import cors from "cors"
 import dotenv from "dotenv"
 import fs from "fs"
 import path from "path"
+import { fileURLToPath } from "url"
 import { installLogFilter } from "./logFilter.js"
 
 dotenv.config()
@@ -53,13 +54,16 @@ app.use((req, res, next) => {
 
 // ================= SESSION =================
 
-const sessionPath = path.join(process.cwd(), "session")
+const appDirectory = path.dirname(fileURLToPath(import.meta.url))
+const sessionPath = process.env.SESSION_PATH || path.join(appDirectory, "session")
 if (!fs.existsSync(sessionPath)) {
     fs.mkdirSync(sessionPath, { recursive: true })
 }
 
 const existingSessionDetect = path.join(sessionPath, "creds.json")
 const hasExistingSession = fs.existsSync(existingSessionDetect)
+
+log(`📁 Auth session: ${sessionPath}`)
 
 let sock
 let waConnection = "close"
