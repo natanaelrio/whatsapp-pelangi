@@ -232,74 +232,77 @@ async function startWA() {
         }
 
         sock.ev.on("messages.upsert", async ({ messages, type }) => {
+            for (const msg of messages || []) {
+                if (!msg?.message) continue
 
-            const msg = messages[0]
-            if (!msg?.message) return
+                const text = getMessageText(msg).trim()
 
-            if (type !== "notify" || !TARGET_GROUPS.includes(msg.key.remoteJid)) return
+                log("========== PESAN MASUK ==========")
+                log("TYPE        :", type)
+                log("GROUP       :", msg.key.remoteJid)
+                log("FROM        :", msg.key.participant)
+                log("FROM ME     :", msg.key.fromMe)
+                log("TEXT        :", text)
+                log("=================================")
 
-            const text = getMessageText(msg).trim()
+                if (type !== "notify" || !TARGET_GROUPS.includes(msg.key.remoteJid)) {
+                    log("Lewat: bukan pesan notify dari target group")
+                    continue
+                }
 
-            log("========== PESAN MASUK ==========")
-            log("TYPE        :", type)
-            log("GROUP       :", msg.key.remoteJid)
-            log("FROM        :", msg.key.participant)
-            log("FROM ME     :", msg.key.fromMe)
-            log("TEXT        :", text)
-            log("=================================")
+                if (msg.key.fromMe) {
+                    log("Lewat: pesan sendiri")
+                    continue
+                }
 
-            if (msg.key.fromMe) {
-                log("Lewat: pesan sendiri")
-                return
-            }
+                if (!/(ok|oke|0k|0ke)/i.test(text)) {
+                    log("Lewat: bukan OK")
+                    continue
+                }
 
-            if (!/(ok|oke|0k|0ke)/i.test(text)) {
-                log("Lewat: bukan OK")
-                return
-            }
+                log("MATCH -> kirim reminder")
 
-            log("MATCH -> kirim reminder")
+                if (waConnection !== "open") {
+                    log("Lewat: koneksi WhatsApp belum terbuka")
+                    continue
+                }
 
-            if (waConnection !== "open") {
-                log("Lewat: koneksi WhatsApp belum terbuka")
-                return
-            }
+                const sender = normalizeParticipant(msg.key.participant || msg.key.remoteJid)
+                const pic = PIC_MAP[sender]
 
-            const sender = normalizeParticipant(msg.key.participant || msg.key.remoteJid)
-            const pic = PIC_MAP[sender]
+                if (!sender) {
+                    log("Lewat: participant kosong")
+                    continue
+                }
 
-            if (!sender) {
-                log("Lewat: participant kosong")
-                return
-            }
+                if (!pic) {
+                    log(`Nomor ${sender} tidak ada di PIC_MAP`)
+                    continue
+                }
 
-            if (!pic) {
-                log(`Nomor ${sender} tidak ada di PIC_MAP`)
-                return
-            }
-
-            const reminder =
-                `Hallo ${pic.name},
+                const reminder =
+                    `Hallo ${pic.name},
 
 Jangan lupa bukti FU di-upload di Paperwork yang sudah disediakan.
 
 Link Google Sheets:
 ${pic.sheet}`
 
-            try {
-                await sock.sendMessage(
-                    msg.key.remoteJid,
-                    {
-                        text: reminder
-                    },
-                    {
-                        quoted: msg
-                    }
-                )
+                try {
+                    await sock.sendMessage(
+                        msg.key.remoteJid,
+                        {
+                            text: reminder
+                        },
+                        {
+                            quoted: msg
+                        }
+                    )
 
-                log(`Reminder berhasil dikirim ke ${pic.name}`)
-            } catch (err) {
-                log("Gagal kirim reminder:", err)
+                    log(`Reminder berhasil dikirim ke ${pic.name}`)
+                } catch (err) {
+                    log("Gagal kirim reminder:", err)
+                }
             }
         })
 
