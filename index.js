@@ -70,6 +70,7 @@ let waConnection = "close"
 let reconnectTimer = null
 let startWAInProgress = false
 let reconnectAttempts = 0
+let socketGeneration = 0
 
 function resetReconnectState() {
     reconnectAttempts = 0
@@ -106,7 +107,7 @@ function scheduleStartWA(delay = 10000) {
         reconnectTimer = null
         reconnectAttempts += 1
         startWA()
-    }, delay)
+    }, reconnectDelay)
 }
 
 // ================= GROUP CACHE =================
@@ -173,6 +174,7 @@ function normalizeParticipant(jid = "") {
 async function startWA() {
     if (startWAInProgress) return
     startWAInProgress = true
+    const currentSocketGeneration = ++socketGeneration
 
     try {
         if (hasExistingSession) {
@@ -232,6 +234,8 @@ async function startWA() {
         }
 
         sock.ev.on("messages.upsert", async ({ messages, type }) => {
+            if (currentSocketGeneration !== socketGeneration) return
+
             for (const msg of messages || []) {
                 if (!msg?.message) continue
 
@@ -307,6 +311,8 @@ ${pic.sheet}`
         })
 
         sock.ev.on("connection.update", async (update) => {
+            if (currentSocketGeneration !== socketGeneration) return
+
             const { connection, lastDisconnect, qr } = update
             const statusCode = lastDisconnect?.error?.output?.statusCode
 
@@ -316,14 +322,20 @@ ${pic.sheet}`
             }
 
             if (connection === "open") {
+                if (currentSocketGeneration !== socketGeneration) return
                 waConnection = "open"
                 groupCache.clear()
-                await preloadGroupCache()
+                try {
+                    await preloadGroupCache()
+                } catch (err) {
+                    log("⚠️ Gagal preload cache grup:", err)
+                }
                 log("✅ WhatsApp siap digunakan")
                 resetReconnectState()
             }
 
             if (connection === "close") {
+                if (currentSocketGeneration !== socketGeneration) return
                 waConnection = "close"
                 const isLoggedOut = statusCode === DisconnectReason.loggedOut
                 const shouldReconnect = isRecoverableDisconnect(statusCode)
