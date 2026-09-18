@@ -82,6 +82,9 @@ function resetReconnectState() {
 function isRecoverableDisconnect(statusCode) {
     if (!statusCode) return true
 
+    // Baileys can report temporary WebSocket/server failures as HTTP 500.
+    if (statusCode === 500) return true
+
     const recoverableReasons = new Set([
         DisconnectReason.connectionLost,
         DisconnectReason.timedOut,
