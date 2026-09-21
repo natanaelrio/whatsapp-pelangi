@@ -83,14 +83,19 @@ function resetReconnectState() {
 function isRecoverableDisconnect(statusCode) {
     if (!statusCode) return true
 
-    // Baileys can report temporary WebSocket/server failures as HTTP 500.
-    if (statusCode === 500) return true
+    // These reasons require a new login or manual intervention.
+    if ([
+        DisconnectReason.loggedOut,
+        DisconnectReason.badSession,
+        DisconnectReason.forbidden,
+        DisconnectReason.connectionReplaced,
+        DisconnectReason.multideviceMismatch
+    ].includes(statusCode)) return false
 
     const recoverableReasons = new Set([
         DisconnectReason.connectionLost,
         DisconnectReason.timedOut,
         DisconnectReason.restartRequired,
-        DisconnectReason.connectionReplaced,
         DisconnectReason.wsDisconnected,
         DisconnectReason.wsConnectionDropped,
         DisconnectReason.wsConnectionDroppedCount
@@ -100,7 +105,7 @@ function isRecoverableDisconnect(statusCode) {
 }
 
 function scheduleStartWA(delay = 10000) {
-    if (reconnectTimer) clearTimeout(reconnectTimer)
+    if (reconnectTimer || startWAInProgress) return
     const reconnectDelay = Math.min(delay * 2 ** reconnectAttempts, 60_000)
     log(`🔁 Reconnect ke-${reconnectAttempts + 1} dijadwalkan dalam ${Math.ceil(reconnectDelay / 1000)} detik`)
     reconnectTimer = setTimeout(() => {
@@ -340,7 +345,14 @@ ${pic.sheet}`
                 const isLoggedOut = statusCode === DisconnectReason.loggedOut
                 const shouldReconnect = isRecoverableDisconnect(statusCode)
 
-                log("❌ Terputus. statusCode:", statusCode, "reconnect:", shouldReconnect)
+                log(
+                    "❌ Terputus. statusCode:",
+                    statusCode,
+                    "reconnect:",
+                    shouldReconnect,
+                    "error:",
+                    lastDisconnect?.error?.message || "unknown"
+                )
 
                 if (isLoggedOut) {
                     log("🔒 WhatsApp menganggap session logout. Session lama dipertahankan; scan QR diperlukan untuk login ulang tanpa menghapus folder auth")
@@ -349,7 +361,7 @@ ${pic.sheet}`
                 }
 
                 if (!shouldReconnect) {
-                    log("🛑 Disconnect reason tidak dapat dipulihkan; mempertahankan session dan menghentikan reconnect otomatis")
+                    log("🛑 Disconnect reason tidak dapat dipulihkan atau session sedang dipakai koneksi lain; reconnect otomatis dihentikan")
                     resetReconnectState()
                     return
                 }
